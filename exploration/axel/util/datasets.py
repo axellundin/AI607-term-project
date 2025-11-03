@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from graphs import FullGraph
-from clustering import compute_embedding
 
 
 class GraphDataset(Dataset):
@@ -69,21 +68,12 @@ class GraphDataset(Dataset):
         return [user_deg, item_deg, shared_count]
 
 
-def create_feature_function(graph, cluster_to_user=None, cluster_to_item=None):
+def create_feature_function(graph):
     """Create a feature extraction function specific to your task."""
    
     def extract_features(user_id, item_id, graph_obj:FullGraph):
         """Extract features for a user-item pair."""
-        if cluster_to_user is None or cluster_to_item is None:
-            raise ValueError("cluster_to_user and cluster_to_item must be provided")
-        return compute_embedding(
-            user_id, 
-            item_id, 
-            cluster_to_user, 
-            cluster_to_item,
-            graph_obj.user_to_items,
-            graph_obj.item_to_users
-        )
+        return graph_obj.compute_embedding(user_id, item_id)
     
     return extract_features
 
