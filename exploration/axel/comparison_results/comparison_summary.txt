@@ -1,0 +1,21 @@
+================================================================================
+DATASET COMPARISON SUMMARY: OLD vs NEW
+================================================================================
+
+TASK 1 CHANGES:
+  Total interactions: 1,023,770 → 972,601 (-5.0%)
+  Sparsity: 0.988180 → 0.988771
+  Avg user degree: 122.56 → 89.57
+  Avg item degree: 166.82 → 121.93
+
+TASK 2 CHANGES:
+  Total interactions: 320,247 → 319,905 (-0.1%)
+  Sparsity: 0.996303 → 0.996307
+  Avg user degree: 41.49 → 29.46
+  Avg item degree: 56.47 → 40.10
+
+KEY INSIGHTS:
+  - Task 1 has -5.0% more training interactions
+  - Task 2 has -0.1% more training interactions
+  - This provides more training data for your models
+  - You may need to retrain models with the new dataset

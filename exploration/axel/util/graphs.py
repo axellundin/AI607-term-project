@@ -7,7 +7,6 @@ from torch_geometric.data import HeteroData
 import random
 import numpy as np
 
-
 class FullGraph: 
     def __init__(self, filename:str=None, 
                  filename_view:str=None, 
