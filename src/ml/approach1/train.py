@@ -44,7 +44,6 @@ with open(os.path.join(data_dir, val_data_filename), 'r') as f:
 print("Precomputing validation features")
 val_features = compute_pred_feature_matrix(G, queries)
 
-
 print("Starting training!")
 for epoch in range(epochs):
     print(f"Epoch {epoch} out of {epochs}.")

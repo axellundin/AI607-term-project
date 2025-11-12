@@ -6,19 +6,19 @@ import torch
 # computing the evaluation metrics for 
 # task 1 and task 2
 
-def compute_MF1(model: torch.nn.Module, edge_index, val_features, val_labels, batch_size=200):
-    model.eval()
-    val_preds_list = []
+def compute_MF1(val_preds, val_labels):
+    # model.eval()
+    # val_preds_list = []
     
-    with torch.no_grad():
-        for i in range(0, len(val_features), batch_size): 
-            batch_features = val_features[i:i+batch_size]
+    # with torch.no_grad():
+    #     for i in range(0, len(val_features), batch_size): 
+    #         batch_features = val_features[i:i+batch_size]
             
-            logits = model(batch_features, edge_index)
-            preds = logits.argmax(dim=1).cpu()
-            val_preds_list.append(preds)
+    #         logits = model(batch_features, edge_index)
+    #         preds = logits.argmax(dim=1).cpu()
+    #         val_preds_list.append(preds)
     
-    val_preds = torch.cat(val_preds_list)
+    # val_preds = torch.cat(val_preds_list)
     
     # Accuracy
     val_acc = (val_preds == val_labels).float().mean().item()
@@ -37,5 +37,19 @@ def compute_MF1(model: torch.nn.Module, edge_index, val_features, val_labels, ba
     recall = TP / (TP + FN + 1e-10)
     f1 = 2 * precision * recall / (precision + recall + 1e-10)
     macro_f1 = f1.mean().item()
+    
+    # Return comprehensive statistics
+    stats = {
+        'accuracy': val_acc,
+        'macro_f1': macro_f1,
+        'per_class': {
+            'precision': precision.tolist(),
+            'recall': recall.tolist(),
+            'f1': f1.tolist(),
+            'TP': TP.int().tolist(),
+            'FP': FP.int().tolist(),
+            'FN': FN.int().tolist(),
+        }
+    }
 
-    return val_acc, macro_f1
+    return stats
