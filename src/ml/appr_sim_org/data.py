@@ -26,6 +26,7 @@ class HeteroGraphDataLoader:
         # Map interaction levels to indices
         self.interaction_to_idx = {inter: idx + 1 for idx, inter in enumerate(self.interaction_types)}
         self.num_classes = len(self.interaction_types) + 1  # +1 for no interaction
+        self.class_count = torch.zeros(self.num_classes)
 
     def load_dataset(self, filename: str) -> Tuple[HeteroData, Dict, Dict, Dict]:
         """
@@ -65,6 +66,7 @@ class HeteroGraphDataLoader:
                 interaction = int(interaction_str)
 
                 labels[(user_id, item_id)] = interaction
+                self.class_count[interaction] += 1
 
                 # Create indices
                 if user_id not in user_id2idx:
@@ -132,6 +134,7 @@ class HeteroGraphDataLoader:
         Returns:
             negative_labels: Dict of (user_id, item_id) -> 0
         """
+        self.class_count[0] = N
         negative_labels = {}
         num_negative_samples = 0
         num_users = len(user2idx)
@@ -194,3 +197,13 @@ class HeteroGraphDataLoader:
                 queries.append((user_id, item_id))
 
         return queries
+
+    def get_class_weights(self) -> torch.tensor:
+        # Make sure that there is no interaction type with zero interactions 
+        assert min(self.class_count) > 0, "[DEBUG ERROR] Trying to compute class weights, but not all classes are represented in dataset!"
+
+        num_total = sum(self.class_count)
+        weights = num_total / self.class_count
+        weights = weights
+        
+        return weights

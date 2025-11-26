@@ -150,6 +150,55 @@ class HeteroGCN(BaseHeteroGNN):
         super().__init__(num_users, num_items, embedding_dim, hidden_channels,
                          num_layers, dropout, num_classes, conv_type='GCN')
 
+class HeteroSAGEV2(HeteroSAGE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Override the decoder to accept 3x embedding dim (u, v, u*v)
+        self.decoder = nn.Sequential(
+            nn.Linear(3 * self.embedding_dim, self.hidden_channels),
+            nn.ReLU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(self.hidden_channels, self.hidden_channels // 2),
+            nn.ReLU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(self.hidden_channels // 2, self.num_classes)
+        )
+
+    def forward(self, data, user_ids, item_ids):
+        # Re-use the convolution logic from parent
+        # (We need to reproduce the conv logic or refactor BaseHeteroGNN to separate encoding from decoding)
+        # Since refactoring might break things, let's copy-paste the conv part or call super().forward if we can intercept it.
+        # But super().forward() runs the decoder. So we have to copy the conv logic.
+
+        # Initial embeddings
+        x_dict = {
+            'user': self.user_embedding.weight,
+            'item': self.item_embedding.weight
+        }
+
+        # First convolution layer
+        x_dict = self.hetero_conv(x_dict, self.convs1, data)
+        x_dict = {key: F.relu(x) for key, x in x_dict.items()}
+        x_dict = {key: F.dropout(x, p=self.dropout, training=self.training) for key, x in x_dict.items()}
+
+        # Second convolution layer
+        x_dict = self.hetero_conv(x_dict, self.convs2, data)
+        x_dict = {key: F.relu(x) for key, x in x_dict.items()}
+        x_dict = {key: F.dropout(x, p=self.dropout, training=self.training) for key, x in x_dict.items()}
+
+        # Get embeddings for batch
+        batch_user_emb = x_dict['user'][user_ids]
+        batch_item_emb = x_dict['item'][item_ids]
+
+        # --- Decoder changed --- !!
+        edge_emb = torch.cat([
+            batch_user_emb,
+            batch_item_emb,
+            batch_user_emb * batch_item_emb 
+        ], dim=-1)
+
+        logits = self.decoder(edge_emb)
+        return logits
 
 class HeteroHAN(nn.Module):
     """
@@ -384,6 +433,9 @@ def create_model(model_name: str, num_users: int, num_items: int, embedding_dim:
                          num_layers, dropout, num_classes)
     elif model_name.upper() == 'SAGE':
         return HeteroSAGE(num_users, num_items, embedding_dim, hidden_channels,
+                          num_layers, dropout, num_classes)
+    elif model_name.upper() == 'SAGEV2':
+        return HeteroSAGEV2(num_users, num_items, embedding_dim, hidden_channels,
                           num_layers, dropout, num_classes)
     elif model_name.upper() == 'GCN':
         return HeteroGCN(num_users, num_items, embedding_dim, hidden_channels,

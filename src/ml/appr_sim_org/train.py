@@ -285,9 +285,9 @@ class FocalLoss(nn.Module):
 
 
 def create_trainer(model: nn.Module, data: HeteroData, device: torch.device,
-                   learning_rate: float = 0.01, batch_size: int = 8192,
-                   models_dir: str = './models', model_name: str = 'model',
-                   loss_type: str = 'ce', class_weights: Optional[torch.Tensor] = None) -> Trainer:
+                   learning_rate: float = 0.01, weight_decay: float = 0.0,
+                   batch_size: int = 8192,
+                   models_dir: str = './models', model_name: str = 'model', class_weights=None) -> Trainer:
     """
     Create a trainer with default optimizer and criterion.
 
@@ -296,6 +296,7 @@ def create_trainer(model: nn.Module, data: HeteroData, device: torch.device,
         data: The graph data
         device: Device to train on
         learning_rate: Learning rate
+        weight_decay: L2 regularization factor
         batch_size: Batch size
         models_dir: Directory to save models
         model_name: Name for the model file
@@ -305,8 +306,8 @@ def create_trainer(model: nn.Module, data: HeteroData, device: torch.device,
     Returns:
         Trainer instance
     """
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = create_loss_function(loss_type, device=device, class_weights=class_weights)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss(class_weights)
 
     return Trainer(model, data, device, optimizer, criterion, batch_size,
                    models_dir=models_dir, model_name=model_name)
