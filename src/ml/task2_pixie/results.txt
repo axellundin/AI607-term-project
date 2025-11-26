@@ -1,0 +1,4 @@
+lambdaS 1 lambdaB 1 : 0.112888
+lambdaS 2 lambdaB 1 : 0.114043
+lambdaS 3 lambdaB 1 : 0.113028
+lambdaS 4 lambdaB 1 : 0.112674

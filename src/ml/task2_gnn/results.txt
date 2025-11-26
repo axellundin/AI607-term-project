@@ -1,0 +1,3 @@
+- baseline graphSAGE model : 
+-  add node feature : 0.100243
+- add node features (node degree of save, buy ) : 0.096386
