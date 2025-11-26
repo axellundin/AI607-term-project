@@ -1,10 +1,12 @@
 import os
-import torch
-from tqdm import tqdm
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 from ml.approach4.data import load_dataset, load_validation_dataset
 from ml.approach4.model import HeteroSAGE
 from util.metrics import compute_MF1
 from settings import *
+import torch
+from tqdm import tqdm
 
 def run_test():
     # Load the saved model
@@ -14,11 +16,7 @@ def run_test():
         print(f"Model file not found: {model_path}")
         return
 
-    # Load on CPU first to be safe, or MPS if available
-    device = torch.device('mps' if torch.mps.is_available() else 'cpu')
-    print(f"Using device: {device}")
-    
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location='cpu')
 
     # Extract hyperparameters and mappings
     num_users = checkpoint['hyperparameters']['num_users']
@@ -35,6 +33,7 @@ def run_test():
     print(f"  - hidden_channels: {hidden_channels}")
 
     # Initialize model
+    device = torch.device('cpu')
     model = HeteroSAGE(num_users, num_items, embedding_dim, hidden_channels).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()

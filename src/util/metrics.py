@@ -1,24 +1,51 @@
 from settings import *
-import torch
+import os
+from collections import Counter
 
 # TODO: 
 # Here we should implement a function for 
 # computing the evaluation metrics for 
 # task 1 and task 2
 
+def compute_interaction_distribution(filename=val_data_filename):
+    """
+    Computes the distribution of interaction classes in the given file.
+    Targeted for Task 1 validation file (task1_val_answers.tsv).
+    """
+    file_path = os.path.join(data_dir, filename)
+    
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+
+    counts = Counter()
+    total_count = 0
+    
+    try:
+        with open(file_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 3:
+                    try:
+                        interaction = int(parts[2])
+                        counts[interaction] += 1
+                        total_count += 1
+                    except ValueError:
+                        continue
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return None
+        
+    distribution = {k: v / total_count for k, v in counts.items()} if total_count > 0 else {}
+    
+    return {
+        'counts': dict(counts),
+        'distribution': distribution,
+        'total': total_count
+    }
+
 def compute_MF1(val_preds, val_labels):
-    # model.eval()
-    # val_preds_list = []
-    
-    # with torch.no_grad():
-    #     for i in range(0, len(val_features), batch_size): 
-    #         batch_features = val_features[i:i+batch_size]
-            
-    #         logits = model(batch_features, edge_index)
-    #         preds = logits.argmax(dim=1).cpu()
-    #         val_preds_list.append(preds)
-    
-    # val_preds = torch.cat(val_preds_list)
+    import torch
     
     # Accuracy
     val_acc = (val_preds == val_labels).float().mean().item()
@@ -53,3 +80,7 @@ def compute_MF1(val_preds, val_labels):
     }
 
     return stats
+
+if __name__=='__main__':
+    res = compute_interaction_distribution()
+    print(res)

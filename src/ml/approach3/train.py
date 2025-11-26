@@ -38,8 +38,7 @@ val_pairs = list(val_data_dict.keys())
 val_labels = [val_data_dict[pair] for pair in val_pairs]
 
 # Initiate model 
-device = torch.device('mps' if torch.mps.is_available() else 'cpu') # <- does not work, very sad story :(
-device = torch.device("cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # model = HeteroGAT(num_users, num_items, embedding_dim, hidden_channels).to(device)
 model = HeteroSAGE(num_users, num_items, embedding_dim, hidden_channels).to(device)
 data = data.to(device)

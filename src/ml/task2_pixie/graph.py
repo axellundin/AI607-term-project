@@ -102,7 +102,6 @@ def pixie_recommend(
     #Initial Item
     cur_item = np.random.choice(seed_item_idxs, p=weights)
 
-
     for _ in range(n_steps):
         # item -> user
         u = graph.get_random_user_from_item(cur_item)

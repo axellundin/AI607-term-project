@@ -10,17 +10,22 @@ from tqdm import tqdm
 import numpy as np
 
 # Define hyperparamters 
-num_epochs = 10
-embedding_dim = 128
-hidden_channels = 64
-batch_size = 4 * 8192
+num_epochs = 15
+# embedding_dim = 128
+# hidden_channels = 64
+embedding_dim = 256
+hidden_channels = 128
+batch_size = 8192 * 2
 learning_rate = 0.01
+dropout_edge_prob = 0.5 # Probability to drop edges in the graph structure during training
 
 # Load dataset 
 data, user2idx, item2idx, labels = load_dataset(training_data_filename)
 
 # Add negative samples
-num_negative_samples = int(len(labels) / 3)
+num_negative_samples = len(labels) 
+print(f"Generating {num_negative_samples} negative samples...")
+# Optimized negative sampling could go here, but using existing function for now
 negative_labels = get_negative_samples(labels, user2idx, item2idx, num_negative_samples)
 num_users = len(user2idx)
 num_items = len(item2idx)
@@ -36,8 +41,7 @@ val_pairs = list(val_data_dict.keys())
 val_labels = [val_data_dict[pair] for pair in val_pairs]
 
 # Initiate model 
-device = torch.device('mps' if torch.mps.is_available() else 'cpu')
-print(f"Using device: {device}")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # model = HeteroGAT(num_users, num_items, embedding_dim, hidden_channels).to(device)
 model = HeteroSAGE(num_users, num_items, embedding_dim, hidden_channels).to(device)
 data = data.to(device)
@@ -52,7 +56,7 @@ class_weights = class_weights.to(device)
 print(f"Class weights: {class_weights}")
 
 criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5) # Added weight decay
 
 # Checkpoint loading
 checkpoint_path = os.path.join(models_dir, "hetero_sage_model_approach4.pt")  # or specify your checkpoint path
@@ -89,6 +93,21 @@ for epoch in range(start_epoch, num_epochs):
     
     # Shuffle training data
     perm = torch.randperm(len(train_pairs))
+
+    # Edge Dropout for 'interact' edges to prevent overfitting to edge existence
+    # We only drop edges in the message passing graph, NOT in the supervision labels.
+    original_edge_index = data['user', 'interact', 'item'].edge_index
+    original_rev_edge_index = data['item', 'interact_by', 'user'].edge_index
+    
+    # Create a mask
+    mask = torch.rand(original_edge_index.size(1), device=device) > dropout_edge_prob
+    
+    # Apply mask temporarily
+    data['user', 'interact', 'item'].edge_index = original_edge_index[:, mask]
+    # Ideally we should also drop the corresponding reverse edges, but independent dropout is also a valid regularization.
+    # For strict correctness, let's drop reverse edges independently or sync them. Independent is fine for regularization.
+    rev_mask = torch.rand(original_rev_edge_index.size(1), device=device) > dropout_edge_prob
+    data['item', 'interact_by', 'user'].edge_index = original_rev_edge_index[:, rev_mask]
     
     total_loss = 0
     num_batches = 0
@@ -119,6 +138,10 @@ for epoch in range(start_epoch, num_epochs):
         total_loss += loss.item()
         num_batches += 1
     
+    # Restore original edges after epoch (or after batch if you prefer, but per-epoch is faster)
+    data['user', 'interact', 'item'].edge_index = original_edge_index
+    data['item', 'interact_by', 'user'].edge_index = original_rev_edge_index
+
     avg_loss = total_loss / num_batches
     
     print(f"Epoch {epoch+1:3d}/{num_epochs} | Loss: {avg_loss:.4f}")

@@ -6,8 +6,6 @@ from ml.task2_pixie.graph import UserItemNetwork, pixie_recommend
 
 from joblib import Parallel, delayed
 
-
-
 def get_data(train_path, val_path, val_ans_path):
     train = pd.read_csv(
         train_path,
@@ -26,7 +24,6 @@ def get_data(train_path, val_path, val_ans_path):
     )
     return train, val, val_answers
 
-
 def build_gt_dict(val_answers: pd.DataFrame):
     """
     user -> set(items) 로 ground-truth 뷰 아이템을 만듦
@@ -37,13 +34,11 @@ def build_gt_dict(val_answers: pd.DataFrame):
         gt[u] = set(group["item"].tolist())
     return gt
 
-
 def dcg_weights(k: int = 50):
     # w_j = 1 / log2(j+1)
     # j는 1부터 시작한다고 했으니 코드에서는 1..k
     weights = np.array([1.0 / np.log2(j + 1) for j in range(1, k + 1)], dtype=np.float64)
     return weights
-
 
 def evaluate(predictions: dict, gt_dict: dict, k: int = 50) -> float:
     """
@@ -71,7 +66,6 @@ def evaluate(predictions: dict, gt_dict: dict, k: int = 50) -> float:
     if not scores:
         return 0.0
     return float(np.mean(scores))
-
 
 def main():
     parser = argparse.ArgumentParser(

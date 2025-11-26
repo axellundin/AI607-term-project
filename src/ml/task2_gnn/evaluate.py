@@ -2,6 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
+from collections import defaultdict
 
 from ml.task2_gnn.model import HeteroSAGE
 from ml.task2_gnn.data import load_dataset
@@ -12,10 +13,11 @@ def build_idx2id(mapping):
     idx2id = {idx: raw_id for raw_id, idx in mapping.items()}
     return idx2id
 
-def gnn_recommend_for_user(model, data, user_idx, num_items, topk, device):
+def gnn_recommend_for_user(model, data, user_idx, num_items, topk, device, interacted_items=None):
     """
     단일 user (index 기준)에 대해 모든 item을 스코어링하고,
-    상위 topk item index를 리턴
+    상위 topk item index를 리턴.
+    interacted_items: 이미 상호작용한 item index들의 집합/리스트 (추천 제외)
     """
     model.eval()
     with torch.no_grad():
@@ -26,6 +28,13 @@ def gnn_recommend_for_user(model, data, user_idx, num_items, topk, device):
         logits = model(data, user_indices, item_indices)  # [num_items, 1]
         logits = logits.view(-1)                          # [num_items]
         scores = torch.sigmoid(logits)                    # 확률로 해석 (optional)
+
+        # 이미 상호작용한 아이템 제외
+        if interacted_items is not None and len(interacted_items) > 0:
+            # device에 맞는 tensor로 변환
+            # interacted_items가 set이나 list라고 가정
+            exclude_mask = torch.tensor(list(interacted_items), device=device, dtype=torch.long)
+            scores[exclude_mask] = -float('inf')
 
         topk_scores, topk_idx = torch.topk(scores, k=min(topk, num_items))
         # topk_idx: item index들
@@ -43,6 +52,16 @@ def main():
     data, user2idx, item2idx, labels = load_dataset(os.path.basename(train_path))
     num_users = len(user2idx)
     num_items = len(item2idx)
+
+    # 학습 데이터에 있는 interaction 정보 구축 (이미 본 아이템 제외용)
+    user_interacted = defaultdict(set)
+    if ('user', 'interact', 'item') in data.edge_index_dict:
+        edge_index = data['user', 'interact', 'item'].edge_index
+        src_users = edge_index[0].numpy()
+        dst_items = edge_index[1].numpy()
+        for u, i in zip(src_users, dst_items):
+            user_interacted[u].add(i)
+
     data = data.to(device)
 
     # idx -> raw_id 매핑
@@ -91,7 +110,8 @@ def main():
             user_idx=u_idx,
             num_items=num_items,
             topk=topk,
-            device=device
+            device=device,
+            interacted_items=user_interacted.get(u_idx, set())
         )
 
         rec_items_raw = [idx2item[int(i)] for i in topk_item_indices]
