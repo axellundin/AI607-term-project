@@ -49,8 +49,8 @@ class HeteroSAGE(torch.nn.Module):
         user_emb = x_dict['user'][user_ids]  
         item_emb = x_dict['item'][item_ids]  
 
-        user_deg      = data['user'].deg[user_ids].unsqueeze(-1)       # 기존 interact degree
-        # user_save_deg = data['user'].save_deg[user_ids].unsqueeze(-1)
+        user_deg      = data['user'].deg[user_ids].unsqueeze(-1)       # interact degree
+        # user_save_deg = data['user'].save_deg[user_ids].unsqueeze(-1) # not good
         # user_buy_deg  = data['user'].buy_deg[user_ids].unsqueeze(-1)
 
         item_deg      = data['item'].deg[item_ids].unsqueeze(-1)

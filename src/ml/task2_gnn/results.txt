@@ -1,3 +1,4 @@
 - baseline graphSAGE model : 
 -  add node feature : 0.100243
 - add node features (node degree of save, buy ) : 0.096386
+- change embedding dim to 128 -> 256 : 0.095115
