@@ -200,9 +200,94 @@ class Trainer:
         return last_epoch
 
 
+def create_loss_function(loss_type: str = 'ce', num_classes: int = 4, device: Optional[torch.device] = None, class_weights: Optional[torch.Tensor] = None) -> nn.Module:
+    """
+    Create loss function based on type.
+
+    Args:
+        loss_type: Type of loss ('ce', 'weighted_ce', 'focal')
+        num_classes: Number of classes for weighted loss
+        device: Device to place tensors on
+        class_weights: Optional pre-computed class weights
+
+    Returns:
+        Loss function
+    """
+    if loss_type == 'ce':
+        return nn.CrossEntropyLoss()
+    elif loss_type == 'weighted_ce':
+        if class_weights is None:
+            # Default weights if none provided
+            weights = torch.tensor([1.0, 2.0, 3.0, 4.0])  # Adjust based on ranking importance
+        else:
+            weights = class_weights
+
+        if device is not None:
+            weights = weights.to(device)
+        return nn.CrossEntropyLoss(weight=weights)
+    elif loss_type == 'focal':
+        return FocalLoss(num_classes=num_classes)
+    else:
+        raise ValueError(f"Unknown loss type: {loss_type}")
+
+
+def compute_class_weights(labels: List[int], num_classes: int = 4) -> torch.Tensor:
+    """
+    Compute class weights based on inverse class frequency.
+
+    Args:
+        labels: List of class labels
+        num_classes: Number of classes
+
+    Returns:
+        Class weights tensor
+    """
+    # Count class frequencies
+    class_counts = torch.zeros(num_classes)
+    for label in labels:
+        class_counts[label] += 1
+
+    # Compute weights as inverse frequency
+    # Add small epsilon to avoid division by zero
+    weights = 1.0 / (class_counts + 1e-6)
+
+    # Normalize weights so they sum to num_classes
+    weights = weights * num_classes / weights.sum()
+
+    return weights
+
+
+class FocalLoss(nn.Module):
+    """
+    Focal Loss for addressing class imbalance.
+    """
+    def __init__(self, num_classes: int = 4, alpha: float = 1.0, gamma: float = 2.0):
+        super(FocalLoss, self).__init__()
+        self.num_classes = num_classes
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        Compute focal loss.
+
+        Args:
+            inputs: Logits from model (batch_size, num_classes)
+            targets: Ground truth labels (batch_size,)
+
+        Returns:
+            Focal loss value
+        """
+        ce_loss = nn.functional.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+        return focal_loss.mean()
+
+
 def create_trainer(model: nn.Module, data: HeteroData, device: torch.device,
                    learning_rate: float = 0.01, batch_size: int = 8192,
-                   models_dir: str = './models', model_name: str = 'model') -> Trainer:
+                   models_dir: str = './models', model_name: str = 'model',
+                   loss_type: str = 'ce', class_weights: Optional[torch.Tensor] = None) -> Trainer:
     """
     Create a trainer with default optimizer and criterion.
 
@@ -214,12 +299,14 @@ def create_trainer(model: nn.Module, data: HeteroData, device: torch.device,
         batch_size: Batch size
         models_dir: Directory to save models
         model_name: Name for the model file
+        loss_type: Type of loss function ('ce', 'weighted_ce', 'focal')
+        class_weights: Optional class weights for weighted loss
 
     Returns:
         Trainer instance
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = nn.CrossEntropyLoss()
+    criterion = create_loss_function(loss_type, device=device, class_weights=class_weights)
 
     return Trainer(model, data, device, optimizer, criterion, batch_size,
                    models_dir=models_dir, model_name=model_name)

@@ -63,7 +63,7 @@ def main():
                        help='List of interaction types')
 
     # Model
-    parser.add_argument('--model', type=str, choices=['GAT', 'SAGE', 'GCN'],
+    parser.add_argument('--model', type=str, choices=['GAT', 'SAGE', 'GCN', 'HAN', 'LightGCN'],
                        default='SAGE', help='Model type')
     parser.add_argument('--embedding_dim', type=int, default=128,
                        help='Embedding dimension')
@@ -84,6 +84,10 @@ def main():
                        help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=0.01,
                        help='Learning rate')
+    parser.add_argument('--loss', type=str, choices=['ce', 'weighted_ce', 'focal'],
+                       default='ce', help='Loss function: ce (cross-entropy), weighted_ce (weighted cross-entropy), focal (focal loss)')
+    parser.add_argument('--threshold_moving', action='store_true',
+                       help='Apply threshold moving during inference based on class weights')
     parser.add_argument('--negative_ratio', type=float, default=1/3,
                        help='Ratio of negative samples to positive samples')
     parser.add_argument('--resume', action='store_true',
@@ -150,9 +154,16 @@ def main():
         data = data.to(device)
 
         # Create trainer
+        # Compute class weights for weighted loss and threshold moving
+        class_weights = None
+        if args.loss == 'weighted_ce' or args.threshold_moving:
+            from ml.appr_sim_org.train import compute_class_weights
+            class_weights = compute_class_weights(train_labels, num_classes)
+            print(f"Computed class weights: {class_weights}")
+
         trainer = create_trainer(
             model, data, device, args.learning_rate, args.batch_size,
-            args.models_dir, args.model_name
+            args.models_dir, args.model_name, loss_type=args.loss, class_weights=class_weights
         )
 
         # Training hyperparameters
@@ -166,6 +177,9 @@ def main():
             'model_type': args.model,
             'aggr': args.aggr,
             'num_classes': num_classes,
+            'loss_type': args.loss,
+            'threshold_moving': args.threshold_moving,
+            'class_weights': class_weights.tolist() if class_weights is not None else None,
         }
 
         # Train
@@ -173,6 +187,10 @@ def main():
                      val_pairs, val_labels, args.num_epochs, hyperparameters, args.resume)
 
     elif args.mode in ['eval', 'predict']:
+        # Load training graph first (needed for HAN model initialization and message passing)
+        data, user2idx, item2idx, _ = data_loader.load_dataset(f"{args.dataset}_train.tsv")
+        data = data.to(device)
+
         # Load model
         model_path = os.path.join(args.models_dir, f"{args.model_name}.pt")
         if not os.path.exists(model_path):
@@ -191,6 +209,9 @@ def main():
         model_type = hyperparams.get('model_type', 'SAGE')
         aggr = hyperparams.get('aggr', 'mean')
         num_classes = hyperparams.get('num_classes', 4)
+        threshold_moving = hyperparams.get('threshold_moving', False)
+        class_weights_list = hyperparams.get('class_weights', None)
+        class_weights = torch.tensor(class_weights_list) if class_weights_list is not None else None
 
         # Create model
         model = create_model(
@@ -198,15 +219,19 @@ def main():
             hidden_channels, num_layers, dropout, num_classes,
             aggr=aggr
         ).to(device)
+
+        # For HAN models, initialize layers with metadata before loading state_dict
+        if model_type.upper() == 'HAN':
+            from ml.appr_sim_org.models import HeteroHAN
+            if isinstance(model, HeteroHAN):
+                model.initialize_han_layers(data.metadata())
+
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval()
 
-        # Load training graph (needed for message passing)
-        data, user2idx, item2idx, _ = data_loader.load_dataset(f"{args.dataset}_train.tsv")
-        data = data.to(device)
-
         # Create evaluator
-        evaluator = Evaluator(model, data, device, checkpoint['user2idx'], checkpoint['item2idx'], args.batch_size)
+        evaluator = Evaluator(model, data, device, checkpoint['user2idx'], checkpoint['item2idx'],
+                             args.batch_size, threshold_moving=threshold_moving, class_weights=class_weights)
 
         if args.mode == 'eval':
             # Load evaluation data

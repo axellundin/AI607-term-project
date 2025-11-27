@@ -13,13 +13,34 @@ class Evaluator:
 
     def __init__(self, model: nn.Module, data: HeteroData, device: torch.device,
                  user2idx: Dict[str, int], item2idx: Dict[str, int],
-                 batch_size: int = 8192):
+                 batch_size: int = 8192, threshold_moving: bool = False,
+                 class_weights: Optional[torch.Tensor] = None):
         self.model = model
         self.data = data
         self.device = device
         self.user2idx = user2idx
         self.item2idx = item2idx
         self.batch_size = batch_size
+        self.threshold_moving = threshold_moving
+        self.class_weights = class_weights
+
+    def apply_threshold_moving(self, logits: torch.Tensor) -> torch.Tensor:
+        """
+        Apply threshold moving to logits by adjusting with class weights.
+
+        Args:
+            logits: Raw logits from model (batch_size, num_classes)
+
+        Returns:
+            Adjusted logits
+        """
+        if self.threshold_moving and self.class_weights is not None:
+            # Apply threshold moving by adjusting logits with log(class_weights)
+            # This moves decision boundaries based on class priors
+            log_weights = torch.log(self.class_weights + 1e-8)  # Add small epsilon to avoid log(0)
+            adjusted_logits = logits + log_weights.to(logits.device)
+            return adjusted_logits
+        return logits
 
     def evaluate(self, eval_pairs: List[Tuple[str, str]], eval_labels: List[int]) -> Dict[str, float]:
         """
@@ -48,7 +69,9 @@ class Evaluator:
 
                 # Predict
                 logits = self.model.predict(self.data, batch_user_ids, batch_item_ids) # type: ignore
-                preds = logits.argmax(dim=-1).cpu().numpy()
+                # Apply threshold moving if enabled
+                adjusted_logits = self.apply_threshold_moving(logits)
+                preds = adjusted_logits.argmax(dim=-1).cpu().numpy()
 
                 all_preds.extend(preds)
                 all_labels.extend(batch_labels)
@@ -80,7 +103,9 @@ class Evaluator:
 
                 # Predict
                 logits = self.model.predict(self.data, batch_user_ids, batch_item_ids) # type: ignore
-                preds = logits.argmax(dim=-1).cpu().numpy()
+                # Apply threshold moving if enabled
+                adjusted_logits = self.apply_threshold_moving(logits)
+                preds = adjusted_logits.argmax(dim=-1).cpu().numpy()
 
                 all_preds.extend(preds)
 
