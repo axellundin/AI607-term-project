@@ -10,7 +10,7 @@ from tqdm import tqdm
 import numpy as np
 
 # Define hyperparamters 
-num_epochs = 15
+num_epochs = 20
 # embedding_dim = 128
 # hidden_channels = 64
 embedding_dim = 256
@@ -46,14 +46,31 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = HeteroSAGE(num_users, num_items, embedding_dim, hidden_channels).to(device)
 data = data.to(device)
 
-# Define loss function and optimizer 
-# Calculate class weights
+# Weights for loss
+val_distribution = {
+    0: 0.5,
+    1: 0.36727836543997894,
+    2: 0.07892723773175185,
+    3: 0.053794396828269204
+}
+
+# Calculate training set distribution
 class_counts = torch.bincount(torch.tensor(train_labels))
+train_distribution = class_counts.float() / class_counts.sum()
 num_classes = 4
-class_weights = len(train_labels) / (num_classes * class_counts.float())
+
+class_weights = torch.tensor([
+    val_distribution[i] / train_distribution[i].item() if train_distribution[i] > 0 else 1.0
+    for i in range(num_classes)
+], dtype=torch.float32)
+
+# Normalize weights so they sum to num_classes (common practice)
+class_weights = class_weights * num_classes / class_weights.sum()
 class_weights = class_weights.to(device)
 
-print(f"Class weights: {class_weights}")
+print(f"Training distribution: {dict(zip(range(num_classes), train_distribution.tolist()))}")
+print(f"Validation distribution: {val_distribution}")
+print(f"Class weights (val_freq / train_freq, normalized): {class_weights}")
 
 criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5) # Added weight decay

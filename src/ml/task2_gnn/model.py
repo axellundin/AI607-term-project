@@ -3,7 +3,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-
 class HeteroSAGE(torch.nn.Module):
     def __init__(self, num_users, num_items, embedding_dim, hidden_channels):
         super().__init__()
@@ -28,7 +27,8 @@ class HeteroSAGE(torch.nn.Module):
         }, aggr='mean')
 
         self.decoder = nn.Sequential(
-            nn.Linear(2 * hidden_channels+2, hidden_channels),
+            # nn.Linear(2 * hidden_channels+2, hidden_channels), # uncomment to use the new model
+            nn.Linear(2 * hidden_channels, hidden_channels),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(hidden_channels, 1)
@@ -49,20 +49,17 @@ class HeteroSAGE(torch.nn.Module):
         user_emb = x_dict['user'][user_ids]  
         item_emb = x_dict['item'][item_ids]  
 
-        user_deg      = data['user'].deg[user_ids].unsqueeze(-1)       # interact degree
-        # user_save_deg = data['user'].save_deg[user_ids].unsqueeze(-1) # not good
-        # user_buy_deg  = data['user'].buy_deg[user_ids].unsqueeze(-1)
-
-        item_deg      = data['item'].deg[item_ids].unsqueeze(-1)
-        # item_save_deg = data['item'].save_deg[item_ids].unsqueeze(-1)
-        # item_buy_deg  = data['item'].buy_deg[item_ids].unsqueeze(-1)
-
-        # user_aug = torch.cat([user_emb, user_deg, user_save_deg, user_buy_deg], dim=-1)
-        # item_aug = torch.cat([item_emb, item_deg, item_save_deg, item_buy_deg], dim=-1)
-        user_aug = torch.cat([user_emb, user_deg], dim=-1)
-        item_aug = torch.cat([item_emb, item_deg], dim=-1)
-
-        edge_emb = torch.cat([user_aug, item_aug], dim=-1)
+        # Baseline model: don't include node degrees
+        # For baseline checkpoint, decoder expects 2 * hidden_channels = 128 features
+        edge_emb = torch.cat([user_emb, item_emb], dim=-1)
+        
+        # If you want to use degrees, uncomment below and change decoder to use +2:
+        # user_deg = data['user'].deg[user_ids].unsqueeze(-1)
+        # item_deg = data['item'].deg[item_ids].unsqueeze(-1)
+        # user_aug = torch.cat([user_emb, user_deg], dim=-1)
+        # item_aug = torch.cat([item_emb, item_deg], dim=-1)
+        # edge_emb = torch.cat([user_aug, item_aug], dim=-1)
+        
         logits = self.decoder(edge_emb)
                 
         return logits
