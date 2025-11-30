@@ -17,51 +17,24 @@ def build_idx2id(mapping):
 
 def gnn_recommend_batch(model, data, user_indices, num_items, topk, device, user_interacted_dict=None, batch_size=100):
     """
-    Batch evaluation: 여러 user들에 대해 모든 item을 스코어링하고,
-    각 user별로 상위 topk item index를 리턴.
-    user_indices: user index들의 리스트/텐서
-    user_interacted_dict: {user_idx: set of item_indices} - 이미 상호작용한 아이템 제외용
-    batch_size: 한 번에 처리할 user 수 (메모리 제한을 위해)
-    Returns: {user_idx: topk_item_indices} 딕셔너리
+    input : 
+    output : 
     """
     model.eval()
     results = {}
     
     with torch.no_grad():
-        # Process users in batches to avoid memory issues
-        num_batches = (len(user_indices) + batch_size - 1) // batch_size
-        for batch_start in tqdm(range(0, len(user_indices), batch_size), desc="Processing user batches", total=num_batches):
-            batch_end = min(batch_start + batch_size, len(user_indices))
-            batch_user_indices = user_indices[batch_start:batch_end]
-            num_batch_users = len(batch_user_indices)
-            
-            user_indices_tensor = torch.tensor(batch_user_indices, device=device, dtype=torch.long)
-            
-            # 모든 (user, item) 쌍 생성: [num_batch_users * num_items]
-            user_indices_expanded = user_indices_tensor.repeat_interleave(num_items)  # [num_batch_users * num_items]
-            item_indices_expanded = torch.arange(num_items, device=device, dtype=torch.long).repeat(num_batch_users)  # [num_batch_users * num_items]
-            
-            # 배치로 모든 쌍 평가
-            logits = model(data, user_indices_expanded, item_indices_expanded)  # [num_batch_users * num_items, 1]
-            logits = logits.view(-1)  # [num_batch_users * num_items]
-            scores = torch.sigmoid(logits)  # 확률로 해석
-            scores = scores.view(num_batch_users, num_items)  # [num_batch_users, num_items]
-            
-            # 이미 상호작용한 아이템 제외
-            if user_interacted_dict is not None:
-                for i, user_idx in enumerate(batch_user_indices):
-                    if user_idx in user_interacted_dict and len(user_interacted_dict[user_idx]) > 0:
-                        exclude_items = torch.tensor(list(user_interacted_dict[user_idx]), device=device, dtype=torch.long)
-                        scores[i, exclude_items] = -float('inf')
-            
-            # 각 user별로 topk 선택
-            topk_scores, topk_idx = torch.topk(scores, k=min(topk, num_items), dim=1)  # [num_batch_users, topk]
-            
-            # 결과를 딕셔너리에 추가
-            for i, user_idx in enumerate(batch_user_indices):
-                results[user_idx] = topk_idx[i].cpu().numpy()
+        item_indices = torch.arange(num_items, device=device, dtype=torch.long)
+        user_indices = torch.full_like(item_indices, fill_value=user_idx, device=device)
+
+        logits = model(data, user_indices, item_indices)  # [num_items, 1]
+        logits = logits.view(-1)                          # [num_items]
+        scores = torch.sigmoid(logits)                    # 확률로 해석 (optional)
+
+        topk_scores, topk_idx = torch.topk(scores, k=min(topk, num_items))
+
+        return topk_idx.cpu().numpy() 
     
-    return results
 
 def main():
     train_path = os.path.join(data_dir, "task2_train.tsv")

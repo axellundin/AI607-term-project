@@ -49,6 +49,13 @@ class HeteroSAGE(torch.nn.Module):
         user_emb = x_dict['user'][user_ids]  
         item_emb = x_dict['item'][item_ids]  
 
+        user_deg      = data['user'].deg[user_ids].unsqueeze(-1)       # interact degree
+
+        item_deg      = data['item'].deg[item_ids].unsqueeze(-1)
+        user_aug = torch.cat([user_emb, user_deg], dim=-1)
+        item_aug = torch.cat([item_emb, item_deg], dim=-1)
+
+        edge_emb = torch.cat([user_aug, item_aug], dim=-1)
         # Baseline model: don't include node degrees
         # For baseline checkpoint, decoder expects 2 * hidden_channels = 128 features
         edge_emb = torch.cat([user_emb, item_emb], dim=-1)
@@ -61,8 +68,25 @@ class HeteroSAGE(torch.nn.Module):
         # edge_emb = torch.cat([user_aug, item_aug], dim=-1)
         
         logits = self.decoder(edge_emb)
-                
+            
         return logits
 
     def predict(self, data, user_ids, item_ids):
         return self.forward(data, user_ids, item_ids)
+
+    def get_model_embedding(self, data):
+        self.eval()
+        with torch.no_grad():
+            x_dict = {
+                'user': self.user_embedding.weight,
+                'item': self.item_embedding.weight
+            }
+            x_dict = self.conv1(x_dict, data.edge_index_dict)
+            x_dict = {k: F.relu(v) for k, v in x_dict.items()}
+            x_dict = self.conv2(x_dict, data.edge_index_dict)
+
+            user_emb = x_dict['user'].detach().cpu()
+            item_emb = x_dict['item'].detach().cpu()
+        return user_emb, item_emb
+
+
