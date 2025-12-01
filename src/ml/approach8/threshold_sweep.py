@@ -1,9 +1,9 @@
 import os
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-from ml.approach8.data import load_dataset, load_validation_dataset
+from ml.approach8.data import load_combined_dataset, load_validation_dataset
 from ml.approach8.model import HeteroSAGE
-from ml.approach8.test import predict_class
+from ml.approach8.test import predict_from_corn_logits
 import torch.nn.functional as F
 from util.metrics import compute_MF1
 from settings import *
@@ -71,7 +71,9 @@ def sweep_thresholds():
 
     # Load the training graph data (needed for message passing)
     print("\nLoading training graph data...")
-    train_data, _, _, _ = load_dataset(training_data_filename)
+    train_data, _, _, _, _, _ = load_combined_dataset(    
+        task1_filename="task1_train.tsv",
+     task2_filename="task2_train.tsv")
     train_data = train_data.to(device)
 
     # Load validation dataset
