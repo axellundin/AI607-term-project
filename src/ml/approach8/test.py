@@ -1,15 +1,15 @@
 import os
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-from ml.approach6.data import load_combined_dataset, load_validation_dataset
-from ml.approach6.model import HeteroSAGE
+from ml.approach8.data import load_combined_dataset, load_validation_dataset
+from ml.approach8.model import HeteroSAGE
 from util.metrics import compute_MF1
 from settings import *
 import torch
 from tqdm import tqdm
 import torch.nn.functional as F
 
-def predict_from_corn_logits(logits):
+def predict_from_corn_logits(logits, threshold=0.5):
     """
     Convert CORN logits to class predictions.
     
@@ -20,7 +20,7 @@ def predict_from_corn_logits(logits):
         predictions: Tensor of shape (batch_size,) with class predictions (0, 1, 2, or 3)
     """
     probs = torch.sigmoid(logits)
-    return torch.sum(probs > 0.5, dim=1)
+    return torch.sum(probs > threshold, dim=1)
 
 def run_test():
     # Load the saved model

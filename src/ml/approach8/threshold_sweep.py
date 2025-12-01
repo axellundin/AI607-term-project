@@ -1,9 +1,9 @@
 import os
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-from ml.approach7.data import load_dataset, load_validation_dataset
-from ml.approach7.model import HeteroSAGE
-from ml.approach7.test import predict_class
+from ml.approach8.data import load_dataset, load_validation_dataset
+from ml.approach8.model import HeteroSAGE
+from ml.approach8.test import predict_class
 import torch.nn.functional as F
 from util.metrics import compute_MF1
 from settings import *
