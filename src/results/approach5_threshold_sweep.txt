@@ -2,25 +2,25 @@ THRESHOLD SWEEP RESULTS
 ============================================================
 
 Best threshold: λ = 0.30
-Best Macro F1: 0.4818
-Best Accuracy: 0.6176
+Best Macro F1: 0.4822
+Best Accuracy: 0.6291
 
 All results:
 ------------------------------------------------------------
-λ=0.30: Accuracy=0.6176, MF1=0.4818
-λ=0.35: Accuracy=0.6408, MF1=0.4805
-λ=0.25: Accuracy=0.5876, MF1=0.4772
-λ=0.40: Accuracy=0.6564, MF1=0.4722
-λ=0.20: Accuracy=0.5448, MF1=0.4610
-λ=0.45: Accuracy=0.6675, MF1=0.4608
-λ=0.50: Accuracy=0.6753, MF1=0.4475
-λ=0.55: Accuracy=0.6788, MF1=0.4322
-λ=0.15: Accuracy=0.4847, MF1=0.4289
-λ=0.60: Accuracy=0.6783, MF1=0.4158
-λ=0.65: Accuracy=0.6737, MF1=0.3980
-λ=0.70: Accuracy=0.6637, MF1=0.3774
-λ=0.10: Accuracy=0.3952, MF1=0.3690
-λ=0.75: Accuracy=0.6487, MF1=0.3562
-λ=0.80: Accuracy=0.6272, MF1=0.3288
-λ=0.85: Accuracy=0.5986, MF1=0.2960
-λ=0.90: Accuracy=0.5609, MF1=0.2512
+λ=0.30: Accuracy=0.6291, MF1=0.4822
+λ=0.25: Accuracy=0.5998, MF1=0.4806
+λ=0.35: Accuracy=0.6490, MF1=0.4776
+λ=0.40: Accuracy=0.6619, MF1=0.4689
+λ=0.20: Accuracy=0.5571, MF1=0.4689
+λ=0.45: Accuracy=0.6717, MF1=0.4591
+λ=0.50: Accuracy=0.6781, MF1=0.4477
+λ=0.15: Accuracy=0.4969, MF1=0.4397
+λ=0.55: Accuracy=0.6802, MF1=0.4348
+λ=0.60: Accuracy=0.6790, MF1=0.4214
+λ=0.65: Accuracy=0.6735, MF1=0.4066
+λ=0.70: Accuracy=0.6644, MF1=0.3911
+λ=0.10: Accuracy=0.4057, MF1=0.3802
+λ=0.75: Accuracy=0.6493, MF1=0.3705
+λ=0.80: Accuracy=0.6279, MF1=0.3452
+λ=0.85: Accuracy=0.6005, MF1=0.3124
+λ=0.90: Accuracy=0.5658, MF1=0.2701

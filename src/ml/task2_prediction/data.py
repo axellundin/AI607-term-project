@@ -107,6 +107,7 @@ def load_combined_dataset(task1_filename="task1_train.tsv", task2_filename="task
     
     return data, user_id2idx, item_id2idx, labels, all_interactions, task1_users
 
+
 def get_negative_samples(all_interactions, user2idx, item2idx, task1_users, N):
     """
     Generate negative samples (no interaction) for task1 users only.

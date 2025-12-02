@@ -11,13 +11,13 @@ import numpy as np
 import torch.nn.functional as F
 
 # Define hyperparamters 
-num_epochs = 17
+num_epochs = 23
 # embedding_dim = 128
 # hidden_channels = 64
 embedding_dim = 256
 hidden_channels = 128
 batch_size = 8192 * 2
-learning_rate = 0.001
+learning_rate = 0.01
 dropout_edge_prob = 0.3 # Probability to drop edges in the graph structure during training
 
 # Load dataset 
@@ -90,6 +90,16 @@ def encode_ordinal_labels(labels):
         # label == 0 (no_interaction) remains (0, 0, 0)
     return ordinal_labels
 
+# Function to predict from logits (for accuracy calculation)
+def predict_with_threshold(logits, threshold=0.5):
+    """Convert logits to class predictions using threshold."""
+    probs = torch.sigmoid(logits)  # shape (batch, 3)
+    b0 = probs[:, 0] > threshold   # predicts y > 0
+    b1 = probs[:, 1] > threshold   # predicts y > 1
+    b2 = probs[:, 2] > threshold   # predicts y > 2
+    pred = b0.int() + b1.int() + b2.int()
+    return pred
+
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5) # Added weight decay
 
 # Checkpoint loading
@@ -145,6 +155,8 @@ for epoch in range(start_epoch, num_epochs):
     
     total_loss = 0
     num_batches = 0
+    correct_predictions = 0
+    total_samples = 0
     
     # Batch training
     for i in tqdm(range(0, len(train_pairs), batch_size), desc=f"Epoch {epoch+1}/{num_epochs}"):
@@ -171,6 +183,13 @@ for epoch in range(start_epoch, num_epochs):
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         
+        # Calculate accuracy (minimal overhead - reuse logits)
+        with torch.no_grad():
+            preds = predict_with_threshold(logits, threshold=0.5)
+            batch_labels_tensor = torch.tensor(batch_labels_raw, device=device)
+            correct_predictions += (preds == batch_labels_tensor).sum().item()
+            total_samples += len(batch_labels_raw)
+        
         total_loss += loss.item()
         num_batches += 1
     
@@ -179,8 +198,9 @@ for epoch in range(start_epoch, num_epochs):
     data['item', 'interact_by', 'user'].edge_index = original_rev_edge_index
 
     avg_loss = total_loss / num_batches
+    train_accuracy = correct_predictions / total_samples if total_samples > 0 else 0.0
     
-    print(f"Epoch {epoch+1:3d}/{num_epochs} | Loss: {avg_loss:.4f}")
+    print(f"Epoch {epoch+1:3d}/{num_epochs} | Loss: {avg_loss:.4f} | Train Acc: {train_accuracy:.4f}")
     last_epoch = epoch + 1
     # Save checkpoint periodically (e.g., every 10 epochs)
     checkpoint_interval = 10
