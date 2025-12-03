@@ -24,3 +24,4 @@ All results:
 λ=0.10: Accuracy=0.3915, MF1=0.3634
 λ=0.85: Accuracy=0.6271, MF1=0.3464
 λ=0.90: Accuracy=0.5967, MF1=0.3073
+λ=0.95: Accuracy=0.5513, MF1=0.2452
