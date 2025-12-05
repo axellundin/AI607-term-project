@@ -1,17 +1,9 @@
 from settings import *
 import os
 from collections import Counter
-
-# TODO: 
-# Here we should implement a function for 
-# computing the evaluation metrics for 
-# task 1 and task 2
+import numpy as np
 
 def compute_interaction_distribution(filename=val_data_filename):
-    """
-    Computes the distribution of interaction classes in the given file.
-    Targeted for Task 1 validation file (task1_val_answers.tsv).
-    """
     file_path = os.path.join(data_dir, filename)
     
     if not os.path.exists(file_path):
@@ -50,7 +42,6 @@ def compute_MF1(val_preds, val_labels):
     # Accuracy
     val_acc = (val_preds == val_labels).float().mean().item()
     
-    # Per-class metrics for Macro F1
     TP = torch.zeros(4)
     FP = torch.zeros(4)
     FN = torch.zeros(4)
@@ -65,7 +56,6 @@ def compute_MF1(val_preds, val_labels):
     f1 = 2 * precision * recall / (precision + recall + 1e-10)
     macro_f1 = f1.mean().item()
     
-    # Return comprehensive statistics
     stats = {
         'accuracy': val_acc,
         'macro_f1': macro_f1,
@@ -80,6 +70,32 @@ def compute_MF1(val_preds, val_labels):
     }
 
     return stats
+
+def dcg_weights(k: int = 50):
+    weights = np.array([1.0 / np.log2(j + 1) for j in range(1, k + 1)], dtype=np.float64)
+    return weights
+
+def evaluate_DCG(predictions: dict, gt_dict: dict, k: int = 50) -> float:
+    weights = dcg_weights(k)
+    max_score = weights.sum() 
+    scores = []
+
+    for u, rec_items in predictions.items():
+        gt_items = gt_dict.get(u, set())
+
+        s_u = 0.0
+        for j, item in enumerate(rec_items[:k]): 
+            if item in gt_items:
+                s_u += weights[j]
+
+        # normalized
+        s_u_tilde = s_u / max_score if max_score > 0 else 0.0
+        scores.append(s_u_tilde)
+
+    if not scores:
+        return 0.0
+    return float(np.mean(scores))
+
 
 if __name__=='__main__':
     res = compute_interaction_distribution()
