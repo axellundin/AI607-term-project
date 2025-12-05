@@ -21,8 +21,6 @@ class HeteroSAGE(torch.nn.Module):
             ('user', 'interact', 'item'): SAGEConv((-1, -1), hidden_channels),
             ('item', 'interact_by', 'user'): SAGEConv((-1, -1), hidden_channels),
         }, aggr='mean')
-
-
             
         self.decoder = nn.Sequential(
             nn.Linear(2 * hidden_channels, hidden_channels * 2),
@@ -52,12 +50,11 @@ class HeteroSAGE(torch.nn.Module):
         
         # Decode
         edge_emb = torch.cat([user_emb, item_emb], dim=-1)
-        base_logits = self.decoder(edge_emb)  # Shape: (batch_size, 2)
+        base_logits = self.decoder(edge_emb)  
         
         # Enforce monotonicity: logit_save >= logit_buy
-        # This ensures p_save >= p_buy after sigmoid, respecting ordinal structure
         logit_save = base_logits[:, 0]
-        logit_buy = logit_save - F.softplus(base_logits[:, 1])  # Ensures logit_buy <= logit_save
+        logit_buy = logit_save - F.softplus(base_logits[:, 1]) 
         
         logits = torch.stack([logit_save, logit_buy], dim=1)
         

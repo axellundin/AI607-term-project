@@ -26,7 +26,7 @@ class HeteroSAGE(torch.nn.Module):
             nn.Linear(2 * hidden_channels, hidden_channels),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden_channels, 1)  # Binary classifier: single logit for view prediction
+            nn.Linear(hidden_channels, 1) 
         )
         
     def forward(self, data, user_ids, item_ids):
@@ -45,7 +45,7 @@ class HeteroSAGE(torch.nn.Module):
         
         # Decode
         edge_emb = torch.cat([user_emb, item_emb], dim=-1)
-        logits = self.decoder(edge_emb)  # Shape: (batch_size, 1) - binary classifier for view
+        logits = self.decoder(edge_emb)  
         
         return logits
 
@@ -53,17 +53,9 @@ class HeteroSAGE(torch.nn.Module):
         return self.forward(data, user_ids, item_ids)
     
     def load_user_embeddings(self, checkpoint_path, device='cpu'):
-        """
-        Load user embeddings from a pretrained checkpoint and freeze them.
-        
-        Args:
-            checkpoint_path: Path to the checkpoint file
-            device: Device to load the checkpoint on
-        """
         checkpoint = torch.load(checkpoint_path, map_location=device)
         state_dict = checkpoint['model_state_dict']
         
-        # Load user embedding weights
         if 'user_embedding.weight' in state_dict:
             self.user_embedding.weight.data = state_dict['user_embedding.weight'].clone()
             print(f"Loaded user embeddings from checkpoint: {checkpoint_path}")
@@ -74,7 +66,6 @@ class HeteroSAGE(torch.nn.Module):
         self.user_embedding.requires_grad_(False)
         print("User embeddings frozen (requires_grad=False)")
         
-        # Optionally load item embeddings (but keep them trainable)
         if 'item_embedding.weight' in state_dict:
             self.item_embedding.weight.data = state_dict['item_embedding.weight'].clone()
             print(f"Loaded item embeddings from checkpoint (will remain trainable)")
